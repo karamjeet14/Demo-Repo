@@ -1,0 +1,1046 @@
+/**
+*@author Susant Dwivedi
+* @company Saasfocus a Cognizant Company
+* @description  This method is used to Call PlatformEvent on 3M
+*/
+public class ApplicationSendForBureau {
+    
+    /**
+    *@author Susant Dwivedi
+     * @company Saasfocus a Cognizant Company
+     * @description  This method is used to Call PlatformEvent on 3M
+     * Inputs:
+     * Test Class:
+     * History:
+     * <Date> <Authors Name> <Brief Description of Change>
+     *<07-06-2022> <Shubham Gupta> <Added null condition to handle the null pointer exception below (BAFLPS-180)>
+     */
+     @InvocableMethod
+     public static void sendTo3M(List<Opportunity> lstApplication){
+         String LENDTOLENDER_RECORD_TYPE_ID = ApplicationDomain.getRecordTypeIdbyDeveloperName('LendToLender');
+         List<Application__e> lstApplicationPE = new List<Application__e>();
+         Map<String,Application__e> mapOfAppIDWithAppPE = new Map<String,Application__e>();
+         Set<Id> setof3mDectivated = new Set<Id>();
+         List<Results3M__c> results3M = new List<Results3M__c>();
+         Set<Id> idsOfOpp = new Set<Id>();
+         Set<String> setofString = new Set<String>();
+         UtilityBaseService objBaseUtilty= new UtilityBaseService();
+         Map<String,String> mapoffinoneIdwithDocname = getDocumentsWithIds();
+         if(mapoffinoneIdwithDocname != null && mapoffinoneIdwithDocname.size() > 0){
+             setofString.addAll(mapoffinoneIdwithDocname.keySet());
+         }
+         for(Opportunity objOpp:lstApplication){
+             //if(LENDTOLENDER_RECORD_TYPE_ID != objOpp.RecordTypeId){// commented for Customer Id
+                 idsOfOpp.add(objOpp.Id);
+             //}
+         }
+          //changes by Barkat For WIP CR 17th Jan 2022
+         //Added CURI 939 IsDisabled__c,Next_Skip_3M_Offer__c field in query
+         Map<ID,Results3M__c> mapOfResult3m =new Map<ID,Results3M__c>([SELECT Next_Skip_3M_Offer__c,IsDisabled__c,Application__c,WIPRejectStatusA__c,WIPRejectStatusC__c,WIPRejectStatusG__c FROM Results3M__c WHERE IsDisabled__c=false AND Application__c =:idsOfOpp  ]);               
+         system.debug('mapOfResult3m 39'+mapOfResult3m);
+         for(Opportunity objOpp: ApplicationSelector.getApplicantdata(idsOfOpp) ){
+             /*Boolean isNotCorporate = true;
+             if(objOpp.Constitution__c != '1'){
+                 isNotCorporate = false;
+             }
+             if(objOpp.CoAplicantAndGaurantors__r != null){
+                 for(CoAplicantAndGaurantor__c objCoapp: objOpp.CoAplicantAndGaurantors__r){
+                     if(objCoapp.Constitution__c != '1'){
+                         isNotCorporate = false;
+                     }
+                     else{
+                         isNotCorporate = true;
+                     }
+                 }
+             }
+             if(isNotCorporate){*/
+             Map<String,List<String>> mapofStrDocs = new Map<String,List<String>>();
+             if(objOpp.Documents__r != null && objOpp.Documents__r.size() > 0 &&
+                mapoffinoneIdwithDocname != null && mapoffinoneIdwithDocname.size() > 0){
+                 for(Documents__c objDoc:objOpp.Documents__r){
+                     if(mapoffinoneIdwithDocname.containsKey(objDoc.FinnOneId__c) &&
+                         objDoc.Application__c != null && objDoc.CoAplicantAndGaurantor__c == null){
+                         if(!mapofStrDocs.containsKey('Applicant'+mapoffinoneIdwithDocname.get(objDoc.FinnOneId__c)+objDoc.Application__c)){
+                                 mapofStrDocs.put('Applicant'+mapoffinoneIdwithDocname.get(objDoc.FinnOneId__c)+objDoc.Application__c,
+                                                             new List<String>{objDoc.IDProofReferenceNumber__c});
+                         }
+                         else{
+                             mapofStrDocs.get('Applicant'+mapoffinoneIdwithDocname.get(objDoc.FinnOneId__c)+objDoc.Application__c).add(objDoc.IDProofReferenceNumber__c);
+                         }
+                     }
+                     else if(mapoffinoneIdwithDocname.containsKey(objDoc.FinnOneId__c) &&
+                             objDoc.Application__c != null && objDoc.CoAplicantAndGaurantor__c != null &&
+                             objDoc.CoAplicantAndGaurantor__r.RecordType.DeveloperName.equals('Co_Applicant')){
+                         if(!mapofStrDocs.containsKey(objDoc.CoAplicantAndGaurantor__r.RecordType.DeveloperName+mapoffinoneIdwithDocname.get(objDoc.FinnOneId__c)+objDoc.Application__c)){
+                             mapofStrDocs.put(objDoc.CoAplicantAndGaurantor__r.RecordType.DeveloperName+mapoffinoneIdwithDocname.get(objDoc.FinnOneId__c)+objDoc.Application__c,
+                                                         new List<String>{objDoc.IDProofReferenceNumber__c});
+                         }
+                         else{
+                             mapofStrDocs.get(objDoc.CoAplicantAndGaurantor__r.RecordType.DeveloperName+mapoffinoneIdwithDocname.get(objDoc.FinnOneId__c)+objDoc.Application__c).add(objDoc.IDProofReferenceNumber__c);
+                         }
+                     }
+                     else if(mapoffinoneIdwithDocname.containsKey(objDoc.FinnOneId__c) &&
+                             objDoc.Application__c != null && objDoc.CoAplicantAndGaurantor__c != null &&
+                             objDoc.CoAplicantAndGaurantor__r.RecordType.DeveloperName.equals('Guarantor')){
+                         if(!mapofStrDocs.containsKey(objDoc.CoAplicantAndGaurantor__r.RecordType.DeveloperName+mapoffinoneIdwithDocname.get(objDoc.FinnOneId__c)+objDoc.Application__c)){
+                             mapofStrDocs.put(objDoc.CoAplicantAndGaurantor__r.RecordType.DeveloperName+mapoffinoneIdwithDocname.get(objDoc.FinnOneId__c)+objDoc.Application__c,
+                                                         new List<String>{objDoc.IDProofReferenceNumber__c});
+                         }
+                         else{
+                             mapofStrDocs.get(objDoc.CoAplicantAndGaurantor__r.RecordType.DeveloperName+mapoffinoneIdwithDocname.get(objDoc.FinnOneId__c)+objDoc.Application__c).add(objDoc.IDProofReferenceNumber__c);
+                         }
+                     }
+                 }
+             }
+             Application__e objApp = new Application__e();
+             Boolean isCorprarate = false;
+             objApp.AadharNo__c = (mapofStrDocs.containsKey('Applicant'+'AADHAR CARD API'+objOpp.Id) &&
+                                     String.isNotBlank(mapofStrDocs.get('Applicant'+'AADHAR CARD API'+objOpp.Id)[0]))?
+                                     mapofStrDocs.get('Applicant'+'AADHAR CARD API'+objOpp.Id)[0]:'';
+             objApp.AccountVintage__c = objOpp.AccountVintage__c;
+             objApp.PermanentLandmark__c = objOpp.PermanentLandline__c;
+             objApp.PermanentAddress1__c =objOpp.PermanentAddress1__c;
+             objApp.PermanentAddress2__c = objOpp.PermanentAddress2__c;
+             objApp.AlternateMobileNo__c = objOpp.AlternateMobileNo__c;
+             objApp.PermanentCity__c = objOpp.PermanentCity__c;
+             objApp.Constitution__c = objOpp.Constitution__c;
+             objApp.TotalIncome__c = objOpp.NetIncome__c;
+             objApp.CreditCardNo__c = objOpp.CreditCardNo__c;
+             objApp.CreditCardBank__c = objOpp.CreditCardBank__c;
+             objApp.DOBIncorporation__c = objOpp.DOBIncorporation__c;
+             objApp.DrivingLicenceNo__c = (mapofStrDocs.containsKey('Applicant'+'DRIVING LICENSE API'+objOpp.Id) &&
+                                             String.isNotBlank(mapofStrDocs.get('Applicant'+'DRIVING LICENSE API'+objOpp.Id)[0]))?
+                                             mapofStrDocs.get('Applicant'+'DRIVING LICENSE API'+objOpp.Id)[0]:'';
+             objApp.EmailID__c = objOpp.EmailID__c;
+             objApp.EmpAddress1__c = objOpp.EmpAddress1__c;
+             objApp.EmpAddress2__c =objOpp.EmpAddress2__c;
+             objApp.EmpLandmark__c = objOpp.EmpLandmark__c;
+             objApp.EmployeeCity__c = objOpp.EmployeeCity__c;
+             objApp.EmployeeState__c = objOpp.EmployeeState__c;
+             objApp.FirstNameA__c = objOpp.FirstName__c;
+             objApp.Gender__c = objOpp.Gender__c;
+             objApp.LastNameA__c = objOpp.LastName__c;
+             objApp.MaritalStatus__c = objOpp.MaritalStatus__c;
+             objApp.MiddleNameA__c = objOpp.MiddleName__c;
+             objApp.MobileNumber__c = objOpp.MobileNumber__c;
+             objApp.PassportNo__c = (mapofStrDocs.containsKey('Applicant'+'PASSPORT API'+objOpp.Id) &&
+                                       String.isNotBlank(mapofStrDocs.get('Applicant'+'PASSPORT API'+objOpp.Id)[0]))?
+                                       mapofStrDocs.get('Applicant'+'PASSPORT API'+objOpp.Id)[0]:'';
+             // Changes Field Mapping of Pan for BAF-3209 By Puneet Nayak on 7-3-2023
+             objApp.PANCardNo__c = objOpp.Account.PANCardNo__c;
+             objApp.PresentAddress2__c = objOpp.PresentAddress2__c;
+             objApp.PermanentState__c = objOpp.PermanentState__c;
+             objApp.PresentAddress1__c = objOpp.PresentAddress1__c;
+             objApp.PresentCity__c = objOpp.PresentCity__c;
+             objApp.PresentLandmark__c = objOpp.PresentLandmark__c;
+             objApp.PermanentPinCode__c = objOpp.PermanentPinCode__c;
+             objApp.PresentPinCode__c = objOpp.PresentPinCode__c;
+             objApp.PresentState__c = objOpp.PresentState__c;
+             objApp.SDHWoFirstName__c = objOpp.SDHWoFirstName__c;
+             objApp.SDHWoLastName__c = objOpp.SDHWoLastName__c;
+             objApp.SDHWoMiddleName__c = objOpp.SDHWoMiddleName__c;
+             objApp.TypeOfEmployment__c = objOpp.TypeOfEmployment__c;
+             objApp.UIDNo__c = objOpp.UIDNo__c;
+             objApp.VoterIDNo__c = (mapofStrDocs.containsKey('Applicant'+'VOTER ID CARD API'+objOpp.Id) &&
+                                     String.isNotBlank(mapofStrDocs.get('Applicant'+'VOTER ID CARD API'+objOpp.Id)[0]))?
+                                     mapofStrDocs.get('Applicant'+'VOTER ID CARD API'+objOpp.Id)[0]:'';
+             objApp.CoApplicantPresent__c = (String.isNotBlank(objOpp.CoApplicantPresent__c) && objOpp.CoApplicantPresent__c == 'Yes')?'Y':'N';
+             objApp.GuarantorPresent__c = (String.isNotBlank(objOpp.GuarantorPresent__c) && objOpp.GuarantorPresent__c == 'Yes')?'Y':'N';
+             objApp.GuarantorChange__c = objOpp.GuarantorChange__c;
+             objApp.CoapplicantChange__c = objOpp.CoapplicantChange__c;
+             objApp.PermanentLandline__c = objOpp.PermanentLandline__c;
+             objApp.PresentLandline__c = objOpp.PresentLandline__c;
+             objApp.Channel__c = objOpp.Channel__c;
+             objApp.Make__c = (String.isNotBlank(objOpp.Model__r.Make__c))?objOpp.Model__r.Make__c:'';
+             objApp.Model__c = (String.isNotBlank(objOpp.Model__r.Model__c))?objOpp.Model__r.Model__c:'';
+             objApp.MakeID__c = (String.isNotBlank(objOpp.Model__r.MakeId__c))?objOpp.Model__r.MakeId__c:'';
+             objApp.ModelID__c = (String.isNotBlank(objOpp.Model__r.MODELID__c))?objOpp.Model__r.MODELID__c:'';
+             objApp.AccountNo__c = (String.isNotBlank(objOpp.AccountNo__c))?objOpp.AccountNo__c:'';
+             objApp.AmountFinanced__c = objOpp.AmountFinanced__c;
+             objApp.BusinessVertical__c =objOpp.BusinessVertical__c;
+             objApp.ClubEMI__c = objOpp.ClubEMI__c;
+             objApp.ClubFinanceAmount__c = objOpp.ClubFinanceAmount__c;
+            //BAFLPS-118 START Adding this new field-OfferAmount in API Request Body as new requirement
+             objApp.OfferAmount__c=objOpp.OfferAmount__c;
+             //BAFLPS-118 END
+             //Added For Revamp LOS 2.0 Start
+             objApp.AppScrVer__c = '2.0';
+             objApp.ThreeMVer__c = '1.0';
+             //Added For Revamp LOS 2.0 End
+             objApp.CompanyFirmName__c = (objOpp.CompanyFirmName__c != null && String.isNotBlank(objOpp.CompanyFirmName__r.EmployerName__c))?
+                                             objOpp.CompanyFirmName__r.EmployerName__c:'';
+             objApp.CreditCardType__c = objOpp.CreditCardType__c;
+             objApp.CustomerCategory__c = objOpp.CustomerType__c;
+             objApp.HRP__c= objOpp.HRP__c;
+             objApp.IDProof__c= objOpp.IDProof__c;
+             objApp.LTV__c = objOpp.LTV__c;
+             objApp.NegativeAreaA__c = objOpp.NegativeArea__c;
+             objApp.NoOfDependants__c= objOpp.NoOfDependants__c;
+             objApp.Officename__c= (objOpp.SupplierName__c != null && objOpp.SupplierName__r.BFLBranch__c != null
+                                     && String.isNotBlank(objOpp.SupplierName__r.BFLBranch__r.OfficeName__c))?objOpp.SupplierName__r.BFLBranch__r.OfficeName__c:'';
+             objApp.NoOfVehicles__c= objOpp.NoOfVehicles__c;
+             objApp.OpportunityId__c= objOpp.Id;
+             objApp.Officestate__c= (objOpp.SupplierName__c != null && objOpp.SupplierName__r.BFLBranch__c != null
+                                     && String.isNotBlank(objOpp.SupplierName__r.BFLBranch__r.OfficeState__c))?objOpp.SupplierName__r.BFLBranch__r.OfficeState__c:'';
+             objApp.ORP__c= objOpp.ORP__c;
+             objApp.OtherCompanyFirmNameA__c = objOpp.OtherCompanyFirmName__c;
+             objApp.PrimaryEmployment__c = objOpp.PrimaryEmployment__c;
+             objApp.ProductType__c = objOpp.ProductType__c;
+             objApp.ReAppraiseFlag__c = objOpp.ReAppraiseFlag__c;
+             objApp.RepaymentDocumentStatus__c = objOpp.RepaymentDocumentStatus__c;
+             objApp.Business_Model__c = objOpp.Business_Model__c;  // Added for NDCC 
+             objApp.RepaymentMode__c = objOpp.RepaymentMode__c;
+             objApp.ResidingSinceMth__c = objOpp.ResidingSinceMth__c;
+             objApp.RetryCount__c = objOpp.RetryCount__c;
+             objApp.ResidenceStatus__c = objOpp.ResidenceStatus__c;
+             objApp.SubCode__c = objOpp.SubCode__c;
+             objApp.SupplierCategory__c = objOpp.SupplierCategory__c;
+             objApp.SupplierID__c = (objOpp.SupplierName__c != null &&
+                                     String.isNotBlank(objOpp.SupplierName__r.ExternalAccountID__c))?objOpp.SupplierName__r.ExternalAccountID__c:'';
+             objApp.Tenure__c = objOpp.Tenure__c;
+             // Added for BAF-2935 by Puneet Nayak on 02-03-2023 Start
+             if(objOpp.DOBIncorporation__c != null){
+                 Decimal age = CommonUtility.calculateAgeDifferenceCielingRounded(CommonUtility.calculateAgeDifference(objOpp.DOBIncorporation__c, objOpp.CreatedDate.date()));
+                 objApp.AgeA__c = age.setscale(2,system.RoundingMode.DOWN);
+                 objApp.Age_TenureA__c = objOpp.tenure__c != null ? objApp.AgeA__c + (objOpp.tenure__c/12).setScale(2) : objApp.AgeA__c ;
+                 }
+             // Added for BAF-2935 by Puneet Nayak on 02-03-2023 End
+             objApp.VehicleSegment__c = objOpp.VehicleSegment__c;
+             objApp.WorkingSinceMonths__c = objOpp.WorkingSinceMonths__c;
+             objApp.XprsBREflag__c = objOpp.XprsBREflag__c;            
+             objApp.LeadReferenceNo__c = objOpp.LeadReferenceNo__c;            
+             objApp.AddressProofApp__c = objOpp.AddressProofPresent__c;
+             objApp.IncomeProofApp__c = objOpp.IncomeProofType__c;
+             objApp.PreferedLangApp__c = objOpp.Preferred_Language__c;
+             //CF Upsell Fields                       
+             objApp.orpGt3L__c  = objOpp.orpGt3L__c;
+             objApp.orp2LTo3L__c = objOpp.orp2LTo3L__c;
+             objApp.orpUpto2L__c = objOpp.orpUpto2L__c;
+             objApp.Offer_Source__c = objOpp.Offer_Source__c;
+             objApp.Application_Creation_Date__c= objOpp.createddate; //BAF-8200
+             //changes by Barkat For WIP CR 17th Jan 2022
+             objApp.DedupeQueryTypeA__c='QA';//Commented due to WIP Analysis
+             //objApp.DedupeQueryTypeA__c='Q';
+             if(String.isNotBlank(objOpp.CoApplicantPresent__c) && objOpp.CoApplicantPresent__c.equals('Yes')){
+                 objApp.DedupeQueryTypeC__c = 'QA'; //Commented due to WIP Analysis
+                 //objApp.DedupeQueryTypeC__c = 'Q';
+             }
+             if(String.isNotBlank(objOpp.GuarantorPresent__c) && objOpp.GuarantorPresent__c.equals('Yes')){
+                 objApp.DedupeQueryTypeG__c='QA';//Commented due to WIP Analysis
+                 //objApp.DedupeQueryTypeG__c='Q';
+             }
+             
+            for(Results3M__c result3M : mapOfResult3m.values()){
+                 if  (objOpp.Id == result3M.Application__c){
+                     //WIP CR start
+                     if(result3M.WIPRejectStatusA__c !=null){
+                         objApp.DedupeQueryTypeA__c='Q'; 
+                         System.debug('objApp.DedupeQueryTypeA__c :' +objApp.DedupeQueryTypeA__c);
+                     } else{
+                        objApp.DedupeQueryTypeA__c='QA';//Commented due to WIP Analysis
+                       //  objApp.DedupeQueryTypeA__c='Q';
+                     }
+                      //Added by KP CURI 939 start 
+                     if(result3M.IsDisabled__c ==false){
+                         system.debug('result3M 219'+result3M);
+                         objApp.Skip_3M_Offer__c=result3M.Next_Skip_3M_Offer__c;
+                     }
+                     //Added by KP CURI 939 end
+                     if(objOpp.CoApplicantPresent__c.equals('Yes') ){
+                         if(result3M.WIPRejectStatusC__c == null){
+                             objApp.DedupeQueryTypeC__c = 'QA';//Commented due to WIP Analysis
+                             //objApp.DedupeQueryTypeC__c = 'Q';
+                         }
+                         else if(result3M.WIPRejectStatusC__c !=null && objOpp.CoapplicantChange__c =='Yes'){
+                             objApp.DedupeQueryTypeC__c = 'QA';//Commented due to WIP Analysis
+                            // objApp.DedupeQueryTypeC__c = 'Q';
+                         }                
+                      else{
+                         objApp.DedupeQueryTypeC__c = 'Q';
+                       }
+                     }
+                     if(objOpp.GuarantorPresent__c.equals('Yes') ){
+                         if(result3M.WIPRejectStatusG__c == null){
+                              objApp.DedupeQueryTypeG__c='QA';//Commented due to WIP Analysis
+                             //objApp.DedupeQueryTypeG__c='Q';
+                         }
+                         else if(result3M.WIPRejectStatusG__c !=null && objOpp.GuarantorChange__c =='Yes'){
+                             objApp.DedupeQueryTypeG__c='QA';//Commented due to WIP Analysis
+                             //objApp.DedupeQueryTypeG__c='Q';
+                         }                
+                      else{
+                         objApp.DedupeQueryTypeG__c='Q';
+                     }
+                   } //wip end
+                 }
+             }
+             
+             
+             String servicesToBecalled ;
+         String coAppOTPHash;//Baf-6114
+            boolean coAppConsentForm;//Baf-6114
+             Results3M__c objIntial = new Results3M__c(); 
+             system.debug(objOpp.StageName+'objOpp.StageName===objOpp.X3MResults__r.size()==='+objOpp.X3MResults__r.size());
+             if(objOpp.X3MResults__r.size() == 0 && (objOpp.StageName == 'Sent to 3M' || 
+                 (objOpp.StageName == 'Fresh Enquiry' && objOpp.LeadType__c == 'Hard'))){
+                 System.debug('objOpp.Constitution__c'+objOpp.Constitution__c);
+                 if(objOpp.Constitution__c != '1'){
+                     servicesToBecalled = String.join(new List<String>{servicesToBecalled, 
+                                                         'DEDUPE_A'},',');
+                     isCorprarate = true;
+                     objIntial.Application__c = objOpp.Id;
+                     objIntial.ApplicantCorporate__c = true;
+                     objIntial.BSBandApp__c = 'BSBand8';
+                     objIntial.BureauScoreApp__c = -1;
+                     objIntial.QualifiedAmount__c = 0;
+                     objIntial.TypeofSurrogate__c = '0';
+                     objIntial.RequestID__c =  CommonUtility.GenerateKey(objOpp.Id,String.valueOf(system.currentTimeMillis()));
+                 }
+                 else{
+                     servicesToBecalled = String.join(new List<String>{servicesToBecalled, 
+                                                         'BUREAU_A','DEDUPE_A'},',');
+                 }
+                 if(((String.isNotBlank(objOpp.CoApplicantPresent__c) && objOpp.CoApplicantPresent__c.equals('Yes')) ||
+                     (String.isNotBlank(objOpp.GuarantorPresent__c) && objOpp.GuarantorPresent__c.equals('Yes')))){
+                     for(CoAplicantAndGaurantor__c objCoapp: objOpp.CoAplicantAndGaurantors__r){
+                         if(objCoapp.RecordType.DeveloperName.equals('Co_Applicant')){
+coAppOTPHash=objCoapp.OTPHash__c;//baf-6114
+                             coAppConsentForm=objCoapp.ConsentForm__c;//baf-6114
+                             generateApplicationPE(objCoapp,objApp,'Co_Applicant',mapofStrDocs);
+                         }
+                         if(objCoapp.RecordType.DeveloperName.equals('Guarantor')){
+                             generateApplicationPE(objCoapp,objApp,'Guarantor',mapofStrDocs);
+                         }
+                         if(
+                             objCoapp.RecordType.DeveloperName.equals('Co_Applicant') &&
+                             objOpp.CoApplicantPresent__c.equals('Yes')){
+                             System.debug('objCoapp.Constitution__c Coapp'+objCoapp.Constitution__c);
+                             if(objCoapp.Constitution__c != '1'){
+                                 servicesToBecalled = String.join(new List<String>{servicesToBecalled, 
+                                                                     'DEDUPE_C'},',');
+                                 if(!isCorprarate){ 
+                                     objIntial.Application__c = objOpp.Id;
+                                 }
+                                 isCorprarate = true;
+                                 objIntial.CoApplicantGuarantor__c= objCoapp.Id;
+                                 objIntial.CoApplicantCorporate__c = true;
+                                 objIntial.BSBandCoapplicant__c = 'BSBand8';
+                                 objIntial.BureauScoreCoapp__c  = -1;
+                                 objIntial.QualifiedAmount__c = 0;
+                                 objIntial.TypeofSurrogate__c = '0';
+                             }
+                             else{
+                                 servicesToBecalled = String.join(new List<String>{servicesToBecalled, 
+                                                                     'BUREAU_C','DEDUPE_C'},',');
+                             }
+                            // servicesToBecalled = String.join(new List<String>{servicesToBecalled, 'BUREAU_C','DEDUPE_C'},',');
+                         }
+                         else if(
+                                 objCoapp.RecordType.DeveloperName.equals('Guarantor') &&
+                                 objOpp.GuarantorPresent__c.equals('Yes')){
+                                     System.debug('objCoapp.Constitution__cGuar'+objCoapp.Constitution__c);
+                                     if(objCoapp.Constitution__c != '1'){
+                                         servicesToBecalled = String.join(new List<String>{servicesToBecalled, 
+                                                                             'DEDUPE_G'},',');
+                                         if(!isCorprarate){                                            
+                                             objIntial.Application__c = objOpp.Id;
+                                         }
+                                         isCorprarate = true;
+                                         objIntial.Guarantor__c= objCoapp.Id;
+                                         objIntial.GuarantorCorporate__c = true;
+                                         objIntial.BSBandGuarantor__c = 'BSBand8';
+                                         objIntial.BureauScoreGuat__c = -1;
+                                         objIntial.QualifiedAmount__c = 0;
+                                         objIntial.TypeofSurrogate__c = '0';
+                                     }
+                                     else{
+                                         servicesToBecalled = String.join(new List<String>{servicesToBecalled, 
+                                                                             'BUREAU_G','DEDUPE_G'},',');
+                                     }
+                                //servicesToBecalled = String.join(new List<String>{servicesToBecalled,
+                                //  'BUREAU_G','DEDUPE_G'},',');
+                         }
+                     }
+                 }
+                if(!isCorprarate){
+                    servicesToBecalled = String.join(new List<String>{servicesToBecalled, '3M'},',');
+                }
+                //Added null condition to handle the null pointer exception below BAFLPS-180
+                if(String.isNotBlank(servicesToBecalled) && servicesToBecalled.indexOf(',') == 0){
+                     servicesToBecalled = servicesToBecalled.replaceFirst(',', '');
+                }
+                objApp.Services__c = servicesToBecalled;
+//BAF-6114 Start
+                   if( objOpp.ConsentForm__c==false){
+            if(servicesToBecalled!=null && servicesToBecalled.contains('BUREAU_A')){
+                objApp.Gen_Consent_A__c = 'Y';
+                objApp.OTP_Hash_A__c = objOpp.OTPHash__c;
+            }
+            else{
+                objApp.Gen_Consent_A__c = 'N'; 
+            }}
+                     if(coAppConsentForm==false){ 
+            if(servicesToBecalled!=null && servicesToBecalled.contains('BUREAU_C')){
+                objApp.Gen_Consent_C__c = 'Y'; 
+                objApp.OTP_Hash_C__c = coAppOTPHash;
+            }else{
+                objApp.Gen_Consent_C__c = 'N'; 
+                
+            }}
+            
+            //BAF-6114 End
+            //BAF-8214
+            if(objOpp.Constitution__c == '1'){
+                Results3M__c blank3MResult = new Results3M__c();
+                blank3MResult.Application__c = objOpp.Id;
+                blank3MResult.RequestID__c =  CommonUtility.GenerateKey(objOpp.Id,String.valueOf(system.currentTimeMillis()));
+                results3M.add(blank3MResult);
+                    }
+               //BAF-8214
+             }
+             else if(objOpp.X3MResults__r.size() > 0 && objOpp.StageName == 'Sent to 3M'){
+                 for(Results3M__c objReslt3M:objOpp.X3MResults__r){
+                     if(objOpp.Constitution__c != '1'){
+                         isCorprarate = true;
+                     }
+                     if(String.isNotBlank(objReslt3M.BureauErrorCodeA__c) || String.isNotBlank(objReslt3M.BureauErrorMessageA__c)
+                        || objReslt3M.BureauScoreApp__c == null || String.isBlank(objReslt3M.BSBandApp__c) ){
+                         if(objOpp.Constitution__c == '1'){                        
+                             servicesToBecalled = String.join(new List<String>{servicesToBecalled, 'BUREAU_A'},',');
+                             isCorprarate = true;
+                         }
+                         else{                        
+                             servicesToBecalled = String.join(new List<String>{servicesToBecalled, 'BUREAU_A'},',');
+                         }
+                         setof3mDectivated.add(objReslt3M.Id);
+                     }
+                     if(String.isBlank(objReslt3M.LoanStatusA__c) || String.isBlank(objReslt3M.DedupeDoneApp__c)
+                        || objReslt3M.Totalexposure__c == null){
+                         servicesToBecalled = String.join(new List<String>{servicesToBecalled, 'DEDUPE_A'},',');
+                         setof3mDectivated.add(objReslt3M.Id);
+                     }
+                     setof3mDectivated.add(objReslt3M.Id);
+                 }
+                 if((String.isNotBlank(objOpp.CoApplicantPresent__c) && objOpp.CoApplicantPresent__c.equals('Yes')) ||
+                     (String.isNotBlank(objOpp.GuarantorPresent__c) && objOpp.GuarantorPresent__c.equals('Yes'))){
+                     for(CoAplicantAndGaurantor__c objCoapp: objOpp.CoAplicantAndGaurantors__r){
+                         if(objCoapp.RecordType.DeveloperName.equals('Co_Applicant')){
+coAppOTPHash=objCoapp.OTPHash__c;//baf-6114
+                             coAppConsentForm=objCoapp.ConsentForm__c;//baf-6114
+                             if(objCoapp.Constitution__c != '1'){
+                                     isCorprarate = true;
+                             }
+                             generateApplicationPE(objCoapp,objApp,'Co_Applicant',mapofStrDocs);
+                         }
+                         if(objCoapp.RecordType.DeveloperName.equals('Guarantor')){
+                             if(objCoapp.Constitution__c != '1'){
+                                     isCorprarate = true;
+                             }
+                             generateApplicationPE(objCoapp,objApp,'Guarantor',mapofStrDocs);
+                         }
+                         for(Results3M__c objReslt3M:objOpp.X3MResults__r){                            
+                             if(objCoapp.RecordType.DeveloperName.equals('Co_Applicant') && objOpp.CoApplicantPresent__c.equals('Yes') &&
+                             (String.isNotBlank(objOpp.CoapplicantChange__c) && objOpp.CoapplicantChange__c.equals('Yes') ||
+                             (String.isNotBlank(objReslt3M.BureauErrorCodeC__c) || String.isNotBlank(objReslt3M.BureauErrorMessageC__c)
+                               || objReslt3M.BureauScoreCoapp__c == null || String.isBlank(objReslt3M.BSBandCoapplicant__c)))){
+                                 if(objCoapp.Constitution__c != '1'){
+                                     isCorprarate = true;
+                                 }
+                                 else{                                
+                                     servicesToBecalled = String.join(new List<String>{servicesToBecalled, 'BUREAU_C'},',');
+                                 }
+                                 setof3mDectivated.add(objReslt3M.Id);
+                             }
+                             if(objCoapp.RecordType.DeveloperName.equals('Co_Applicant') && objOpp.CoApplicantPresent__c.equals('Yes') &&
+                                ((String.isNotBlank(objOpp.CoapplicantChange__c) && objOpp.CoapplicantChange__c.equals('Yes'))
+                                || (String.isBlank(objReslt3M.LoanStatusC__c) || String.isBlank(objReslt3M.DedupeDoneApp__c) ||
+                                   objReslt3M.Totalexposure__c == null))){
+                                 servicesToBecalled = String.join(new List<String>{servicesToBecalled, 'DEDUPE_C'},',');
+                                 setof3mDectivated.add(objReslt3M.Id);
+                             }
+                             if(objCoapp.RecordType.DeveloperName.equals('Guarantor') && objOpp.GuarantorPresent__c.equals('Yes') &&
+                             ((String.isNotBlank(objOpp.GuarantorChange__c) && objOpp.GuarantorChange__c.equals('Yes') )||
+                             (String.isNotBlank(objReslt3M.BureauErrorCodeG__c) || String.isNotBlank(objReslt3M.BureauErrorMessageG__c)
+                              || objReslt3M.BureauScoreGuat__c == null) || String.isBlank(objReslt3M.BSBandGuarantor__c))){
+                                 if(objCoapp.Constitution__c != '1'){
+                                     isCorprarate = true;
+                                 }
+                                 else{
+                                     servicesToBecalled = String.join(new List<String>{servicesToBecalled, 'BUREAU_G'},',');
+                                  }                                
+                                 setof3mDectivated.add(objReslt3M.Id);
+                             }
+                             if(objCoapp.RecordType.DeveloperName.equals('Guarantor') && objOpp.GuarantorPresent__c.equals('Yes') &&
+                                ((String.isNotBlank(objOpp.GuarantorChange__c) && objOpp.GuarantorChange__c.equals('Yes'))
+                                 || (String.isBlank(objReslt3M.LoanStatusG__c) || String.isBlank(objReslt3M.DedupeDoneG__c) 
+                                 || objReslt3M.Totalexposure__c == null))){
+                                 servicesToBecalled = String.join(new List<String>{servicesToBecalled, 'DEDUPE_G'},',');
+                                 setof3mDectivated.add(objReslt3M.Id);
+                             }
+                             setof3mDectivated.add(objReslt3M.Id);
+                         }
+                     }
+                 }
+             if(!isCorprarate){
+                 servicesToBecalled = String.join(new List<String>{servicesToBecalled, '3M'},',');
+             }
+             if(servicesToBecalled.indexOf(',') == 0){
+                 servicesToBecalled = servicesToBecalled.replaceFirst(',', '');
+            }
+                 
+               
+          /*@author: Prakshi
+          Customer Id changes as part of US 01*/
+         if(LENDTOLENDER_RECORD_TYPE_ID == objOpp.RecordTypeId){
+             Set<String> setOfAllDedupeServices = new Set<String>{'DEDUPE_A','DEDUPE_C','DEDUPE_G'};     
+             List<String> lstServicesToBecalled = servicesToBecalled.split(','); 
+             setOfAllDedupeServices.retainAll(lstServicesToBecalled);
+             servicesToBecalled = '';
+             servicesToBecalled = String.join(setOfAllDedupeServices, ',');
+         }
+         //Customer Id Changes
+         }
+          objApp.Services__c = servicesToBecalled;
+//BAF-6114 Start
+             if( objOpp.ConsentForm__c==false){
+            if(servicesToBecalled!=null && servicesToBecalled.contains('BUREAU_A')){
+                objApp.Gen_Consent_A__c = 'Y';
+                objApp.OTP_Hash_A__c = objOpp.OTPHash__c;
+            }
+            else{
+                objApp.Gen_Consent_A__c = 'N'; 
+            }
+        }
+                  if(coAppConsentForm==false){ 
+            if(servicesToBecalled!=null && servicesToBecalled.contains('BUREAU_C')){
+                objApp.Gen_Consent_C__c = 'Y';
+                objApp.OTP_Hash_C__c = coAppOTPHash;
+            }else{
+                objApp.Gen_Consent_C__c = 'N'; 
+                
+            }}
+            
+            //BAF-6114 End
+            objApp.RequestID__c =  CommonUtility.GenerateKey(objOpp.Id,String.valueOf(system.currentTimeMillis()));
+          //lstApplicationPE.add(objApp);
+          mapOfAppIDWithAppPE.put(objApp.OpportunityId__c,objApp);
+          if(objIntial != null && objIntial.Application__c != null){
+              results3M.add(objIntial);
+          }
+          for(Results3M__c each:Results3MSelector.get3MResult(setof3mDectivated)){
+                 Results3M__c newRcd = each.clone(false, true, false, false);
+                 newRcd.Application__c = each.Application__c;
+                 newRcd.RequestID__c =  CommonUtility.GenerateKey(each.Application__c,String.valueOf(system.currentTimeMillis()));
+                 if(mapOfAppIDWithAppPE.containsKey(each.Application__c)){
+                     if(mapOfAppIDWithAppPE.get(each.Application__c).Constitution__c != null &&
+                         mapOfAppIDWithAppPE.get(each.Application__c).Constitution__c != '1'){
+                         newRcd.ApplicantCorporate__c = true;
+                         newRcd.BSBandApp__c = 'BSBand8';
+                         newRcd.BureauScoreApp__c = -1;
+                         newRcd.QualifiedAmount__c = 0; 
+                         newRcd.TypeofSurrogate__c = '0';
+                      }
+                     if(mapOfAppIDWithAppPE.get(each.Application__c).ConstitutionC__c != null &&
+                         mapOfAppIDWithAppPE.get(each.Application__c).ConstitutionC__c != '1'){
+                         newRcd.CoApplicantGuarantor__c= newRcd.CoApplicantGuarantor__c;
+                         newRcd.CoApplicantCorporate__c = true;
+                         newRcd.BSBandCoapplicant__c = 'BSBand8';
+                         newRcd.BureauScoreCoapp__c  = -1;
+                         newRcd.QualifiedAmount__c = 0;
+                         newRcd.TypeofSurrogate__c = '0';
+                     }
+                     if(mapOfAppIDWithAppPE.get(each.Application__c).ConstitutionG__c != null &&
+                         mapOfAppIDWithAppPE.get(each.Application__c).ConstitutionG__c != '1'){
+                         newRcd.Guarantor__c= newRcd.Guarantor__c;
+                         newRcd.GuarantorCorporate__c = true;
+                         newRcd.BSBandGuarantor__c = 'BSBand8';
+                         newRcd.BureauScoreGuat__c = -1;
+                         newRcd.QualifiedAmount__c = 0;
+                         newRcd.TypeofSurrogate__c = '0';
+                     }
+                     //BAF-5933 start
+                     if(!each.CoApplicantGuarantor__r.IsActive__c && mapOfAppIDWithAppPE.get(each.Application__c).ConstitutionC__c != null &&
+                         mapOfAppIDWithAppPE.get(each.Application__c).ConstitutionC__c == '1'){
+                         newRcd.BSBandCoapplicant__c = null;
+                         newRcd.BureauScoreCoapp__c = null;
+                         newRcd.DedupeDoneCoapp__c = null;
+                     }//BAF-5933 end
+                 }
+                 each.IsDisabled__c = true;
+                 results3M.add(newRcd);
+                 results3M.add(each);
+          }
+         //}
+         }
+         if(mapOfAppIDWithAppPE.values().size() > 0){
+             try{
+             List<Database.SaveResult> lstrslt = EventBus.publish(mapOfAppIDWithAppPE.values());
+             
+             Results3MSelector.upsert3MResult(results3M);
+             
+             objBaseUtilty.createErrorLogRecord('ApplicationSendForBureauPE',
+                                                 false,
+                                                 JSON.serialize(mapOfAppIDWithAppPE.values()) ,
+                                                 JSON.serialize(lstrslt ),
+                                                 lstApplication[0].Id,
+                                                 null,
+                                                 'ApplicationSendForBureau');
+              //Added by shubham for PE integration change CR Start CURI-718
+              if(lstrslt != null && lstrslt.size()>0 && lstrslt[0].errors != null && lstrslt[0].errors.size() > 0 && lstApplication != null && lstApplication.size() > 0 )
+               {
+                     PELoggerService.createPELogger(lstrslt[0].errors[0].message,'Application',JSON.serialize(mapOfAppIDWithAppPE.values()),lstApplication[0].Id);
+               }
+             //Added by shubham for PE integration change CR End
+             }
+             catch(Exception e){
+                 objBaseUtilty.createErrorLogRecord('ApplicationSendForBureauPE ',true,JSON.serialize(mapOfAppIDWithAppPE.values()) ,JSON.serialize(e.getMessage()),lstApplication[0].Id,null,'ApplicationSendForBureau');
+ 
+             }
+         }
+     }
+ 
+     public static void generateApplicationPE(CoAplicantAndGaurantor__c objCoApplicant,
+                                                             Application__e objApp,
+                                                             String coappOrguarntor,
+                                                             Map<String,List<String>> mapofStrDocs){
+             // Changes done for impact on WIP cases BAF-4970 start
+             string cutOffDateString = System.label.X3M_UID_format_cutoff_date != null ? System.label.X3M_UID_format_cutoff_date : '2023-08-01' ;
+             Date cutOffDate = Date.valueOf(cutOffDateString);
+             // Changes done for impact on WIP cases BAF-4970 end
+             if(coappOrguarntor =='Guarantor'){
+             objApp.AadharNoG__c = (mapofStrDocs.containsKey('Guarantor'+'AADHAR CARD API'+objCoApplicant.Enquiry__c) &&
+                                     String.isNotBlank(mapofStrDocs.get('Guarantor'+'AADHAR CARD API'+objCoApplicant.Enquiry__c)[0]))?
+                                     mapofStrDocs.get('Guarantor'+'AADHAR CARD API'+objCoApplicant.Enquiry__c)[0]:'';
+             objApp.PermanentAddress1G__c = objCoApplicant.PermanentAddress1__c;
+             objApp.PermanentAddress2G__c = objCoApplicant.PermanentAddress2__c;
+             objApp.AlternateMobileNoG__c = objCoApplicant.AlternateMobileNo__c;
+             objApp.PermanentCityG__c = objCoApplicant.PermanentCity__c;
+             objApp.ConstitutionG__c = objCoApplicant.Constitution__c;
+             objApp.CreditCardBankG__c = objCoApplicant.CreditCardBank__c;
+             objApp.CreditCardNoG__c = objCoApplicant.CreditCardNo__c;
+             objApp.DOBIncorporationG__c = objCoApplicant.DOBIncorporation__c;
+             // Added for BAF-2935 by Puneet Nayak on 02-03-2023 Start
+             if(objCoApplicant.DOBIncorporation__c != null){
+                 Decimal age = CommonUtility.calculateAgeDifferenceCielingRounded(CommonUtility.calculateAgeDifference(objCoApplicant.DOBIncorporation__c, objCoApplicant.CreatedDate.date()));
+                 objApp.AgeG__c = age.setscale(2,system.RoundingMode.DOWN);
+                 objApp.Age_TenureG__c = objCoApplicant.Enquiry__r.tenure__c != null ? objApp.AgeG__c + (objCoApplicant.Enquiry__r.tenure__c/12).setScale(2) :objApp.AgeG__c ;
+                 }
+             // Added for BAF-2935 by Puneet Nayak on 02-03-2023 End
+             objApp.DrivingLicenceNoG__c = (mapofStrDocs.containsKey('Guarantor'+'DRIVING LICENSE API'+objCoApplicant.Enquiry__c) &&
+                                             String.isNotBlank(mapofStrDocs.get('Guarantor'+'DRIVING LICENSE API'+objCoApplicant.Enquiry__c)[0]))?
+                                             mapofStrDocs.get('Guarantor'+'DRIVING LICENSE API'+objCoApplicant.Enquiry__c)[0]:'';
+             objApp.EmailIDG__c = objCoApplicant.EmailID__c;
+             objApp.FirstNameG__c = objCoApplicant.FirstName__c;
+             objApp.GenderG__c = objCoApplicant.Gender__c;
+             objApp.LastNameG__c = objCoApplicant.LastName__c;
+             objApp.MaritalStatusG__c = objCoApplicant.MaritalStatus__c;
+             objApp.MiddleNameG__c = objCoApplicant.MiddleName__c;
+             objApp.MobileNumberG__c = objCoApplicant.MobileNumber__c;
+             // Changes Field Mapping of Pan for BAF-3209 By Puneet Nayak on 7-3-2023
+             objApp.PANCardNoG__c = objCoApplicant.PANCardNo__c;
+             objApp.PassportNoG__c = (mapofStrDocs.containsKey('Guarantor'+'PASSPORT API'+objCoApplicant.Enquiry__c) &&
+                                       String.isNotBlank(mapofStrDocs.get('Guarantor'+'PASSPORT API'+objCoApplicant.Enquiry__c)[0]))?
+                                       mapofStrDocs.get('Guarantor'+'PASSPORT API'+objCoApplicant.Enquiry__c)[0]:'';
+             objApp.PermanentLandmarkG__c = objCoApplicant.PermanentLandline__c;
+             objApp.PermanentPinCodeG__c = objCoApplicant.PermanentPinCode__c;
+             objApp.PermanentStateG__c = objCoApplicant.PermanentState__c;
+             objApp.PresentAddress1G__c = objCoApplicant.PresentAddress1__c;
+             objApp.PresentAddress2G__c = objCoApplicant.PresentAddress2__c;
+             objApp.PresentCityG__c = objCoApplicant.PresentCity__c;
+             objApp.SDHWoFirstNameG__c = objCoApplicant.SDHWoFirstName__c;
+             objApp.SDHWoLastNameG__c = objCoApplicant.SDHWoLastName__c;
+             objApp.SDHWoMiddleNameG__c = objCoApplicant.SDHWoMiddleName__c;
+             objApp.TotalIncomeG__c = objCoApplicant.NetIncome__c;
+             objApp.TypeOfEmploymentG__c = objCoApplicant.TypeOfEmployment__c;
+             objApp.AccountVintageG__c = objCoApplicant.AccountVintage__c;
+             // Changes done for impact on WIP cases BAF-4970 start
+             if(objCoApplicant.CreatedDate > cutOffDate){
+                 objApp.UIDNoG__c = (String.isNotBlank(objCoApplicant.UIDNo__c))?objCoApplicant.UIDNo__c:null; //+'_g' removed this as part of customer search
+             }else{
+                 objApp.UIDNoG__c = (String.isNotBlank(objCoApplicant.UIDNo__c))?objCoApplicant.UIDNo__c+'_g':null;
+             }
+             // Changes done for impact on WIP cases BAF-4970 End
+             objApp.VoterIDNoG__c = (mapofStrDocs.containsKey('Guarantor'+'VOTER ID CARD API'+objCoApplicant.Enquiry__c) &&
+                                     String.isNotBlank(mapofStrDocs.get('Guarantor'+'VOTER ID CARD API'+objCoApplicant.Enquiry__c)[0]))?
+                                     mapofStrDocs.get('Guarantor'+'VOTER ID CARD API'+objCoApplicant.Enquiry__c)[0]:'';
+             objApp.AccountNoG__c = (String.isNotBlank(objCoApplicant.AccountNo__c))?objCoApplicant.AccountNo__c:'';
+             objApp.CompanyFirmNameG__c = (objCoApplicant.CompanyFirmName__c != null && String.isNotBlank(objCoApplicant.CompanyFirmName__r.EmployerName__c))?
+                                             objCoApplicant.CompanyFirmName__r.EmployerName__c:'';
+             objApp.CreditCardTypeG__c = objCoApplicant.CreditCardType__c;
+             objApp.HRPG__c= objCoApplicant.HRP__c;
+             objApp.IDProofG__c= objCoApplicant.IDProof__c;
+             objApp.NegativeAreaG__c= objCoApplicant.NegativeArea__c;
+             objApp.NoOfDependantsG__c= objCoApplicant.NoOfDependants__c;
+             objApp.OtherCompanyFirmNameG__c = objCoApplicant.OtherCompanyFirmName__c;
+             objApp.PresentLandlineG__c = objCoApplicant.PresentLandline__c;
+             objApp.PresentLandmarkG__c = objCoApplicant.PresentLandline__c;
+             objApp.PresentPinCodeG__c = objCoApplicant.PresentPinCode__c;
+             objApp.PresentStateG__c = objCoApplicant.PresentState__c;
+             objApp.PrimaryEmploymentG__c = objCoApplicant.PrimaryEmployment__c;
+             objApp.ResidenceStatusG__c = objCoApplicant.ResidenceStatus__c;
+             objApp.WorkingSinceMonthsG__c = objCoApplicant.WorkingSinceMonths__c;
+             objApp.ResidingSinceMthC__c = objCoApplicant.ResidingSinceMth__c;
+         }
+         else{
+             objApp.AadharNoC__c = (mapofStrDocs.containsKey('Co_Applicant'+'AADHAR CARD API'+objCoApplicant.Enquiry__c) &&
+                                    String.isNotBlank(mapofStrDocs.get('Co_Applicant'+'AADHAR CARD API'+objCoApplicant.Enquiry__c)[0]))?
+                                    mapofStrDocs.get('Co_Applicant'+'AADHAR CARD API'+objCoApplicant.Enquiry__c)[0]:'';
+             objApp.PermanentAddress1C__c = objCoApplicant.PermanentAddress1__c;
+             objApp.PermanentAddress2C__c = objCoApplicant.PermanentAddress2__c;
+             objApp.AlternateMobileNoC__c = objCoApplicant.AlternateMobileNo__c;
+             objApp.PermanentCityC__c = objCoApplicant.PermanentCity__c;
+             objApp.ConstitutionC__c = objCoApplicant.Constitution__c;
+             objApp.CreditCardBankC__c = objCoApplicant.CreditCardBank__c;
+             objApp.CreditCardNoC__c = objCoApplicant.CreditCardNo__c;
+             objApp.DOBIncorporationC__c = objCoApplicant.DOBIncorporation__c;
+             // Added for BAF-2935 by Puneet Nayak on 02-03-2023 Start
+             if(objCoApplicant.DOBIncorporation__c != null){
+                 Decimal age = CommonUtility.calculateAgeDifferenceCielingRounded(CommonUtility.calculateAgeDifference(objCoApplicant.DOBIncorporation__c, objCoApplicant.CreatedDate.date()));
+                 objApp.AgeC__c = age.setscale(2,system.RoundingMode.DOWN);
+                 objApp.Age_TenureC__c =objCoApplicant.Enquiry__r.tenure__c != null ? objApp.AgeC__c + (objCoApplicant.Enquiry__r.tenure__c/12).setScale(2) :objApp.AgeC__c ;
+                 }
+             // Added for BAF-2935 by Puneet Nayak on 02-03-2023 End
+             objApp.DrivingLicenceNoC__c = (mapofStrDocs.containsKey('Co_Applicant'+'DRIVING LICENSE API'+objCoApplicant.Enquiry__c) &&
+                                             String.isNotBlank(mapofStrDocs.get('Co_Applicant'+'DRIVING LICENSE API'+objCoApplicant.Enquiry__c)[0]))?
+                                             mapofStrDocs.get('Co_Applicant'+'DRIVING LICENSE API'+objCoApplicant.Enquiry__c)[0]:'';
+             objApp.EmailIDC__c = objCoApplicant.EmailID__c;
+             objApp.EmpAddress1C__c = objCoApplicant.EmpAddress1__c;
+             objApp.EmpLandmarkC__c = objCoApplicant.EmpLandmark__c;
+             objApp.EmployeeCityC__c = objCoApplicant.EmployeeCity__c;
+             objApp.FirstNameC__c = objCoApplicant.FirstName__c;
+             objApp.GenderC__c = objCoApplicant.Gender__c;
+             objApp.LastNameC__c = objCoApplicant.LastName__c;
+             objApp.MaritalStatusC__c = objCoApplicant.MaritalStatus__c;
+             objApp.MiddleNameC__c = objCoApplicant.MiddleName__c;
+             objApp.MobileNumberC__c = objCoApplicant.MobileNumber__c;
+             // Changes Field Mapping of Pan for BAF-3209 By Puneet Nayak on 7-3-2023
+             objApp.PANCardNoC__c = objCoApplicant.PANCardNo__c;
+             objApp.PassportNoC__c = (mapofStrDocs.containsKey('Co_Applicant'+'PASSPORT API'+objCoApplicant.Enquiry__c) &&
+                                     String.isNotBlank(mapofStrDocs.get('Co_Applicant'+'PASSPORT API'+objCoApplicant.Enquiry__c)[0]))?
+                                     mapofStrDocs.get('Co_Applicant'+'PASSPORT API'+objCoApplicant.Enquiry__c)[0]:'';
+             objApp.PermanentLandmarkC__c = objCoApplicant.PermanentLandline__c;
+             objApp.PermanentPinCodeC__c = objCoApplicant.PermanentPinCode__c;
+             objApp.PermanentStateC__c = objCoApplicant.PermanentState__c;
+             objApp.PresentAddress1C__c = objCoApplicant.PresentAddress1__c;
+             objApp.PresentAddress2C__c = objCoApplicant.PresentAddress2__c;
+             objApp.PresentCityC__c = objCoApplicant.PresentCity__c;
+             objApp.SDHWoFirstNameC__c = objCoApplicant.SDHWoFirstName__c;
+             objApp.SDHWoLastNameC__c = objCoApplicant.SDHWoLastName__c;
+             objApp.SDHWoMiddleNameC__c = objCoApplicant.SDHWoMiddleName__c;
+             objApp.TotalIncomeC__c = objCoApplicant.NetIncome__c;
+             objApp.TypeOfEmploymentC__c = objCoApplicant.TypeOfEmployment__c;
+             // Changes done for impact on WIP cases BAF-4970 start
+             if(objCoApplicant.CreatedDate > cutOffDate){
+                 objApp.UIDNoC__c = (String.isNotBlank(objCoApplicant.UIDNo__c))?objCoApplicant.UIDNo__c:null; //+'_g' removed this as part of customer search
+             }else{
+                 objApp.UIDNoC__c = (String.isNotBlank(objCoApplicant.UIDNo__c))?objCoApplicant.UIDNo__c+'_c':null;
+             }
+             // Changes done for impact on WIP cases BAF-4970 End
+             objApp.VoterIDNoC__c = (mapofStrDocs.containsKey('Co_Applicant'+'VOTER ID CARD API'+objCoApplicant.Enquiry__c) &&
+                                     String.isNotBlank(mapofStrDocs.get('Co_Applicant'+'VOTER ID CARD API'+objCoApplicant.Enquiry__c)[0]))?
+                                     mapofStrDocs.get('Co_Applicant'+'VOTER ID CARD API'+objCoApplicant.Enquiry__c)[0]:'';
+             objApp.HRPC__c = objCoApplicant.HRP__c;
+             objApp.AccountVintageC__c = objCoApplicant.AccountVintage__c;
+             objApp.AccountNoC__c = (String.isNotBlank(objCoApplicant.AccountNo__c))?objCoApplicant.AccountNo__c:'';
+             objApp.CompanyFirmNameC__c = (objCoApplicant.CompanyFirmName__c != null && String.isNotBlank(objCoApplicant.CompanyFirmName__r.EmployerName__c))?
+                                             objCoApplicant.CompanyFirmName__r.EmployerName__c:'';
+             objApp.CreditCardTypeC__c = objCoApplicant.CreditCardType__c;
+             objApp.IDProofC__c= objCoApplicant.IDProof__c;
+             objApp.NegativeAreaC__c= objCoApplicant.NegativeArea__c;
+             objApp.NoOfDependantsC__c= objCoApplicant.NoOfDependants__c;
+             objApp.OtherCompanyFirmNameC__c = objCoApplicant.OtherCompanyFirmName__c;
+             objApp.PresentLandlineC__c = objCoApplicant.PresentLandline__c;
+             objApp.PresentLandmarkC__c = objCoApplicant.PresentLandmark__c;
+             objApp.PresentPinCodeC__c = objCoApplicant.PresentPinCode__c;
+             objApp.PresentStateC__c = objCoApplicant.PresentState__c;
+             objApp.PrimaryEmploymentC__c = objCoApplicant.PrimaryEmployment__c;
+             objApp.ResidenceStatusC__c = objCoApplicant.ResidenceStatus__c;
+             objApp.WorkingSinceMonthsC__c = objCoApplicant.WorkingSinceMonths__c;
+             objApp.ResidingSinceMthC__c = objCoApplicant.ResidingSinceMth__c;
+             objApp.AddressProofCoApp__c = objCoApplicant.AddressProofPresent__c;
+             objApp.IncomeProofCoapp__c = objCoApplicant.IncomeProofType__c;
+             objApp.PreferedLangCoApp__c = objCoApplicant.Preferred_Language__c;
+         }
+     }
+ 
+     /**
+     *@author Susant Dwivedi
+      * @company Saasfocus a Cognizant Company
+      * @description  This is used for Bureau Re-Trigger
+      * Inputs:
+      * Test Class:
+      * History:
+      * <Date> <Authors Name> <Brief Description of Change>
+      *
+      */
+     @AuraEnabled
+     public static LightningResponse getOpportinityInitdata(String oppId){
+         LightningResponse objRes = new LightningResponse();
+         Set<String> setofProfileallowed = new Set<String>{'System Administrator','IT Team'};
+         Set<String> stageNames = new Set<String>{'Sent to 3M'};
+         Profile profile = [SELECT id,Name FROM Profile WHERE Id=:UserInfo.getProfileId() WITH SECURITY_ENFORCED];
+         Opportunity opprts = ApplicationSelector.getRecordTypeIdAndStageName(oppId);
+         RecordType rectype=[SELECT Id,DeveloperName  from RecordType where Id=:opprts.RecordTypeId];
+         if(opprts != null){
+             if(setofProfileallowed.contains(profile.Name) &&
+                 opprts.StageName.equals('Sent to 3M')){
+                 objRes.isSuccess = true;
+                 objRes.isError = false;
+                 objRes.payload = 'The Bureau request successfully re-triggered';
+                 try {
+                     sendTo3M(new List<Opportunity>{opprts});
+                 } catch (Exception e) {
+                     objRes.payload = e.getMessage();
+                 }
+ 
+             }
+             //Added For Re Trigger Mini 3 M Start
+             else if(setofProfileallowed.contains(profile.Name) &&
+                 !opprts.StageName.equals('App Score')&& rectype.DeveloperName.equals('ExpressWay') ){
+                 objRes.isSuccess = true;
+                 objRes.isError = false;
+                 objRes.payload = 'The Mini 3M -1 request successfully re-triggered';
+                 try {
+                     Mini3MEngine.sendTo3M(new List<Opportunity>{opprts});
+                 } catch (Exception e) {
+                     objRes.payload = e.getMessage();
+                 }
+             }
+             else if(setofProfileallowed.contains(profile.Name) &&
+                 opprts.StageName.equals('App Score') && rectype.DeveloperName.equals('ExpressWay') ){
+                 objRes.isSuccess = true;
+                 objRes.isError = false;
+                 objRes.payload = 'The Mini 3M 3.0 request successfully re-triggered';
+                 try {
+                 Mini3MEngine.sendTo3MAppScore (new List<Opportunity>{opprts});
+                 } catch (Exception e) {
+                     objRes.payload = e.getMessage();
+                 }
+ 
+             }
+             //Added For Re Trigger Mini 3 M End
+             else if(!setofProfileallowed.contains(profile.Name) ||
+                       !opprts.StageName.equals('Sent to 3M')){
+                     objRes.isSuccess = false;
+                     objRes.isError = true;
+                     if(!setofProfileallowed.contains(profile.Name) && !opprts.StageName.equals('Sent to 3M')){
+                         objRes.payload = 'This action not allowed for '+profile.Name+' and for this stage not allowed';
+                     }
+                     else if(!setofProfileallowed.contains(profile.Name) && opprts.StageName.equals('Sent to 3M')){
+                         objRes.payload = 'Bureau re-trigger action not allowed for '+profile.Name;
+                     }
+                     else if(setofProfileallowed.contains(profile.Name) && !opprts.StageName.equals('Sent to 3M')){
+                         objRes.payload = 'Bureau re-trigger action not allowed for '+opprts.StageName;
+                     }
+             }
+         }
+         return objRes;
+     }
+    
+    /**
+    * @author Prakhar Shrivastava
+    * @company Persistent Systems
+    * @description  This is used for callout to 3M Repull API
+    * @JIRA: BAF-7685
+    */
+    @AuraEnabled
+    public static LightningResponse send3MRepullRequest(String repull3MRequest){
+
+        LightningResponse objLR = new LightningResponse();
+        UtilityBaseService objUtilityBase = new UtilityBaseService();
+        CustomMetadataSelector custMetaSelector = new CustomMetadataSelector();    
+        Repull3MRequestWrapper objRepull3MRequest = validate3mRepullRequestParams(repull3MRequest);
+
+        objLR.isSuccess = true; //for testing only
+        
+        // List<AuthorizationSetting__mdt> lstAuth = custMetaSelector.getAuthorizationSettingData(Constants.CONST_ALTERNATE_3M_REPULL_APINAME);
+
+        // Repull3MRequest repull3mRequestBody = new Repull3MRequest();
+        // repull3mRequestBody.recordUID = objRepull3MRequest.recordUID;
+        // repull3mRequestBody.requestId = objRepull3MRequest.requestId;
+
+        // try{ 
+
+        //     if(lstAuth != null && lstAuth.size() > 0 && lstAuth[0].IsActive__c && lstAuth[0].NamedCredential__c != null){
+            
+        //         SecureCalloutHandler secureObj = new SecureCalloutHandler(lstAuth[0], 'OUTBOUND');
+        //         secureObj.method = UtilityBaseService.REQUESTTYPE;
+        //         secureObj.body = JSON.serialize(repull3mRequestBody);
+        //         HTTPResponse response = objUtilityBase.getSecuredResponse(secureObj);
+                
+        //         if(secureObj.encryption && response.getBody() != null){
+        //             response.setBody((String)JSON.deserialize(response.getBody(),String.class));
+        //         }
+
+        //         if(response!=null && response.getBody() != null) {
+        //             List<Response3M__e> lstResponse3M = new List<Response3M__e>();
+                    
+        //             if(response.getStatusCode() == 200) {
+        //                 lstResponse3M = (List<Response3M__e>)JSON.deserialize(response.getBody().toString(), List<Response3M__e>.class);
+        //                 if(lstResponse3M.size() > 0){
+        //                     // UtilityResponse3M.response3MHandler(lstResponse3M);
+        //                 }
+        //             }
+
+        //             objLR.isError = response.getStatusCode() == 200 ? false : true;
+        //             objLR.isSuccess = response.getStatusCode() == 200 ? true : false;
+        //             ErrorLog__c errorLog = objUtilityBase.getErrorLogRecord(Constants.CONST_ALTERNATE_3M_REPULL_APINAME,
+        //                                                                     response.getStatusCode()==200 ? false : true,
+        //                                                                     JSON.serialize(repull3mRequestBody), 
+        //                                                                     response.getBody(), 
+        //                                                                     objRepull3MRequest.recordId, 
+        //                                                                     null, 
+        //                                                                     'ApplicationSendForBureau');
+        //             errorLog.Description__c = objRepull3MRequest.requestId;
+        //             errorLog.ObjectName__c = objRepull3MRequest.currentEntity;
+        //             ErrorLogSelector.setEncryptedDataInErrorLogRecord(errorLog,secureObj.encryptedRequest,secureObj.encryptedResponse);
+        //             ErrorLogSelector.insertErrorLogs(new List<ErrorLog__c>{errorLog},true);
+        //         }           
+        //     } 
+        //     else{
+        //         objLR.isError = true;
+        //         objLR.isSuccess = false;
+        //         objLR.errorMessage = '3M repull service is inactive. Kindly contact the System Administrator.';          
+        //         ErrorLog__c errorLog = objUtilityBase.getErrorLogRecord(Constants.CONST_ALTERNATE_3M_REPULL_APINAME,
+        //                                             true,
+        //                                             '', 
+        //                                             'Service is Inactive', 
+        //                                             objRepull3MRequest.recordId, 
+        //                                             null, 
+        //                                             'ApplicationSendForBureau');
+        //         errorLog.ObjectName__c = objRepull3MRequest.currentEntity;
+        //         ErrorLogSelector.insertErrorLogs(new List<ErrorLog__c>{errorLog},true);
+        //     }
+        // }
+        // catch(Exception ex) {
+        //     objLR.isError = true;
+        //     objLR.isSuccess = false;
+        //     objLR.errorMessage = ex.getMessage();          
+        //     ErrorLog__c errorLog = objUtilityBase.getErrorLogRecord(Constants.CONST_ALTERNATE_3M_REPULL_APINAME,
+        //                                         true,
+        //                                         JSON.serialize(repull3mRequestBody), 
+        //                                         '', 
+        //                                         objRepull3MRequest.recordId, 
+        //                                         ex, 
+        //                                         'ApplicationSendForBureau');
+        //     errorLog.ObjectName__c = objRepull3MRequest.currentEntity;
+        //     ErrorLogSelector.insertErrorLogs(new List<ErrorLog__c>{errorLog},true);
+        // }
+        return objLR;
+    }
+
+    /**
+     * @Author: Satyam Krishna
+     * @Company: Saasworx
+     * @Description: This method is used to validate the 3M repull request parameters
+     * @JIRA: BAF-7685
+     */
+    private static Repull3MRequestWrapper validate3mRepullRequestParams(String requestParams) {
+
+        Set<String> setOfMissingParams = new Set<String>();
+
+        if(String.isBlank(requestParams)) {
+            throw new Repull3MException('Invalid request parameters.');
+        }
+
+        Repull3MRequestWrapper objRepull3MRequest = (Repull3MRequestWrapper)JSON.deserialize(requestParams,Repull3MRequestWrapper.class);
+        if(objRepull3MRequest == null || String.isBlank(objRepull3MRequest.recordId) ||
+        String.isBlank(objRepull3MRequest.recordUID) || String.isBlank(objRepull3MRequest.requestId) || 
+        String.isBlank(objRepull3MRequest.currentEntity)) {
+            throw new Repull3MException('Invalid request parameters.');
+        }
+        return objRepull3MRequest;
+    }
+    
+     /**
+     *@author Susant Dwivedi
+     * @company Saasfocus a Cognizant Company
+     * @description This is used to Get Document Index values
+     * Inputs:
+     * Test Class:
+     * History:
+     * <Date> <Authors Name> <Brief Description of Change>
+     *
+     */
+     public static Map<String,String> getDocumentsWithIds(){
+         CustomMetadataSelector objCustSel = new CustomMetadataSelector();
+         Map<String,List<String>>  mapofDocWithDocuments = new Map<String,List<String>>();
+         Map<String,String> mapofdocs = new Map<String,String>();
+         for(EnquiryDocumentMatrix__mdt objEDocmat: objCustSel.getEnquirydocumentdataRecords()){
+             for(String each:objEDocmat.ScreenName__c.split(',')){
+                 if(String.isNotBlank(objEDocmat.DocumentFinnOneID__c) &&  each.contains(' API')){
+                     mapofdocs.put(objEDocmat.DocumentFinnOneID__c,each);
+                     if(!mapofDocWithDocuments.containsKey(each)){
+                         List<String> docNames = new List<String>();
+                         docNames.add(objEDocmat.DocumentFinnOneID__c);
+                         mapofDocWithDocuments.put(each, docNames);
+                     }
+                     else{
+                         mapofDocWithDocuments.get(each).add(objEDocmat.DocumentFinnOneID__c);
+                     }
+                 }
+             }
+         }
+         return mapofdocs;
+     }
+    /*
+     @Author: Satyam Krishna
+     @Company: Saasworx
+     @Description: This method is used to create opportunity details wrapper to display on vf page/lwc component
+     @JIRA : CURI-1111, CURI-1166
+     */
+     public static OppWrapper createOppWrapper(Opportunity opp, String status, String message, Boolean isError, String errorMsg) {
+         OppWrapper objWrap = new OppWrapper();
+         if(opp!=null) {
+             objWrap.Name = opp.Name;
+             objWrap.uid = opp.UIDNo__c;
+             objWrap.stage = opp.StageName;
+             objWrap.nameUrl = '/'+opp.Id;
+         }
+         objWrap.status = status!=null?status:null;
+         objWrap.message = message!=null?message:null;
+         objWrap.isError = isError!=null?isError:null;
+         objWrap.errorMsg = errorMsg!=null?errorMsg:null;
+         return objWrap;
+     }
+     /*
+     @Author: Satyam Krishna
+     @Company: Saasworx
+     @Description: This is opportunity wrapper class
+     @JIRA : CURI-1111, CURI-1166
+     */
+     public class OppWrapper {
+         @AuraEnabled
+         public string name;
+         @AuraEnabled
+         public string uid;
+         @AuraEnabled
+         public string stage;
+         @AuraEnabled
+         public string nameUrl;
+         @AuraEnabled
+         public string status;
+         @AuraEnabled
+         public string message;
+         @AuraEnabled 
+         public Boolean isError;
+         @AuraEnabled 
+         public string errorMsg;
+     }
+    
+    //Added for BAF-7685 starts here
+    public class Repull3MRequestWrapper {
+        public String recordId;
+        public String recordUID;
+        public String requestId;
+        public String currentEntity;
+    }
+
+    public class Repull3MRequest {
+        public String recordUID;
+        public String requestId;
+    }
+
+    public class Repull3MException extends Exception {}
+    //Added for BAF-7685 ends here
+ }
