@@ -18,7 +18,6 @@ public class ApplicationSendForBureau {
      @InvocableMethod
      public static void sendTo3M(List<Opportunity> lstApplication){
          String LENDTOLENDER_RECORD_TYPE_ID = ApplicationDomain.getRecordTypeIdbyDeveloperName('LendToLender');
-         List<Application__e> lstApplicationPE = new List<Application__e>();
          Map<String,Application__e> mapOfAppIDWithAppPE = new Map<String,Application__e>();
          Set<Id> setof3mDectivated = new Set<Id>();
          List<Results3M__c> results3M = new List<Results3M__c>();
